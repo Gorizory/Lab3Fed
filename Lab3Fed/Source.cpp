@@ -7,7 +7,8 @@
 #include <string>
 
 #define N 3
-#define NU 0.1
+#define NU 0.4
+#define N_ITER 3
 
 using namespace std;
 
@@ -42,7 +43,7 @@ double randDouble() {
 	return (double) (rand() / (double) RAND_MAX) - 1.0;
 }
 
-vector<Point> createEllipce(float x0, float y0, float angle, float a, float b, double d) {
+vector<Point> createEllipce(double x0, double y0, double angle, double a, double b, double d) {
 	double x, y, ellipseArea;
 	vector<Point> vec;
 
@@ -84,8 +85,9 @@ public:
 		return w;
 	}
 
-	void teach(Point point) {
+	vector<double> teach(Point point) {
 		vector<double> vec = { 0.0 };
+		vector<double> delta = { 0.0 };
 
 		vec.push_back(point.x);
 		vec.push_back(point.y);
@@ -93,7 +95,23 @@ public:
 		vec = normalizeVector(vec);
 
 		for (unsigned j = 1; j < vec.size(); j++) {
-			w[j] = w[j] + NU * point.d * (vec[j] - w[j]);
+			delta.push_back(NU * point.d * (vec[j] - w[j]));
+		}
+		
+		return delta;
+	}
+
+	void changeW(vector<vector<double>> delta) {
+		vector<double> deltaRes = { 0.0, 0.0, 0.0 };
+
+		for (vector<double> d : delta) {
+			for (unsigned j = 0; j < d.size(); j++) {
+				deltaRes[j] += d[j];
+			}
+		}
+
+		for (unsigned j = 0; j < deltaRes.size(); j++) {
+			w[j] += deltaRes[j] / delta.size();
 		}
 
 		normW();
@@ -106,7 +124,7 @@ public:
 		for (unsigned j = 1; j < vec.size(); j++) {
 			cosPhi += w[j] * vec[j];
 		}
-
+		cout << cosPhi << endl;
 		if (cosPhi > 0.95) {
 			return 1;
 		}
@@ -123,13 +141,19 @@ int main() {
 	vector<Point> ellipse1 = createEllipce(15.0, 7.5, 0.0, 10.0, 5.0, 1.0);
 	vector<Point> ellipse2 = createEllipce(-5.0, 15.0, 0.0, 3.0, 12.0, 0.0);
 
-	for (Point p : ellipse1) {
-		neuron.teach(p);
-	}
-	for (Point p : ellipse2) {
-		neuron.teach(p);
-	}
+	vector<vector<double>> delta;
 
+	for (unsigned t = 0; t < N_ITER; t++) {
+		for (Point p : ellipse1) {
+			delta.push_back(neuron.teach(p));
+		}
+		for (Point p : ellipse2) {
+			delta.push_back(neuron.teach(p));
+		}
+		
+		neuron.changeW(delta);
+	}
+	
 	vector<double> vec = neuron.getW();
 	cout << "Vector W:" << endl;
 	for (unsigned j = 1; j < vec.size(); j++) {
